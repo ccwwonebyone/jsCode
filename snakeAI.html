@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+	<meta charset="UTF-8">
+	<title>粒子</title>
+	<script src="http://code.jquery.com/jquery-latest.js"></script>
+</head>
+<body style="background-color: silver;">
+<canvas width="200px" height="200px" id="canvas" style="background-color: black;"></canvas>
+<button id="run">点击</button>
+<script type="text/javascript">
+//画布
+var allCan = {};
+//贪吃蛇 定义蛇对象
+var snake = {};
+//剩余部分
+var residue = {};
+//画布大小
+var canHight,canWidth;
+//食物
+var food = new Array();
+
+canHight = canWidth = 200;
+
+allCan.body = new Array();
+
+//定义游戏进程
+var run = false;
+//游戏控制按钮
+var runB = document.getElementById('run');
+runB.onclick = function(){
+	run = run ? false : true;
+}
+
+//蛇初始化身位置
+snake.initBdoy = 10;
+//蛇运动的步数
+snake.step = 10;
+//蛇的大小
+snake.big = 10;
+//初始化画布
+for (var i = 0 ; i < canHight ; i = i+snake.big){
+	for (var j = 0 ; j < canWidth ; j = j+snake.big){
+		allCan.body.push(Array(i,j));
+	}
+}
+var borderRange = range(0,canWidth-snake.big,snake.big);
+//定义固定禁止移动局域
+var commonDeny = new Array();
+commonDeny = tArr_y(borderRange,-snake.big);
+commonDeny = commonDeny.concat(tArr_y(borderRange,canWidth));
+commonDeny = commonDeny.concat(tArr_x(borderRange,-snake.big));
+commonDeny = commonDeny.concat(tArr_x(borderRange,canWidth));
+//四条边缘
+var borderLeft = tArr_x(borderRange,0);
+var borderUp = tArr_y(borderRange,0);
+var borderRight = tArr_x(borderRange,canWidth-snake.big);
+var borderButtom = tArr_y(borderRange,canWidth-snake.big);
+
+//初始化蛇身
+snake.body = new Array();
+for (var i = snake.initBdoy - 1; i >= 0; i--) {
+	snake.body[i] = new Array(canHight/2 - 60 +i*snake.big,canHight/2);
+}
+//获取数组差集 数组1有 数组2没有
+function diffArr(arr1,arr2){
+	var reArr = new Array();
+	for (var j = arr1.length - 1; j >= 0; j--) {
+		if(!inArray(arr1[j],arr2)){
+			reArr.push(arr1[j]);
+		}
+	}
+	return reArr;
+}
+//获取数组交集
+function intersectArr(arr1,arr2){
+	var reArr = new Array();
+	for (var j = arr1.length - 1; j >= 0; j--) {
+		if(inArray(arr1[j],arr2)){
+			reArr.push(arr1[j]);
+		}
+	}
+	return reArr;
+}
+//判断元素是否存在数组中，存在返回true，不存在返回false
+function inArray(need,array){
+	var  i = array.length;
+	if(typeof(need) == 'number' || typeof(need) == 'string'){
+		while(i--){
+			if(need == array[i])
+				return true;
+		}
+	}else{
+		while(i--){
+			if(eqArray(need,array[i]))
+				return true;
+		}
+	}
+	return false;
+}
+//判断数组是否相等
+function eqArray(arr1,arr2){
+	if (arr1.length != arr2.length) return false;
+
+	for (var i = arr1.length - 1; i >= 0; i--) {
+		if(arr1[i] != arr2[i])
+			return false;
+	}
+	return true;
+}
+//range函数
+function range(start,end,step = 1){
+	var rangeArr = new Array();
+	while(start != end){
+		rangeArr.push(start);
+		if(start < end){
+			start = start + step;
+		}else{
+			start = start - step;
+		}
+	}
+	rangeArr.push(end);
+	return rangeArr;
+}
+//将两个一维数组合并打包
+function zip(arr1,arr2){
+	if (arr1.length != arr2.length) return false;
+	var arr = new Array();
+	for (var i = arr1.length - 1; i >= 0; i--) {
+		arr.unshift([arr1[i],arr2[i]]);
+	}
+	return arr;
+}
+//使用元素填充一维数组为2为数组
+function tArr_y(arr,thing){
+	var reArr = new Array();
+	for (var i = 0; i < arr.length; i++) {
+		reArr.push([arr[i],thing])
+	}
+	return reArr;
+}
+//使用元素填充一维数组为2为数组
+function tArr_x(arr,thing){
+	var reArr = new Array();
+	for (var i = 0; i < arr.length; i++) {
+		reArr.push([thing,arr[i]])
+	}
+	return reArr;
+}
+//删除某一元素
+function arrRemoveItem(item,arr){
+	for (var i = arr.length - 1; i >= 0; i--) {
+		if (arr[i] == item)
+			arr.splice(i,1);
+	}
+	return arr;
+}
+
+//剩余部分大小
+residue.body = diffArr(allCan.body,snake.body);
+//产生随机食物
+food = residue.body[parseInt(Math.random()*residue.body.length)];
+/*console.log(allCan.body.length);
+console.log(snake.body.length);
+console.log(residue.body.length);
+*/
+var c = document.getElementById('canvas');
+var cxt = c.getContext("2d");
+//画蛇
+function draw_snake(){
+	for (var i = snake.body.length - 1; i >= 0; i--) {
+		var x = snake.body[i][0];
+		var y = snake.body[i][1];
+		cxt.fillStyle = 'red';
+		if(i == 0)
+			cxt.fillStyle = 'yellow';
+
+		if(i == snake.body.length - 1)
+			cxt.fillStyle = 'green';
+
+		cxt.fillRect(x,y,snake.big,snake.big);
+	}
+}
+//画食物
+function drawFood() {
+	cxt.fillStyle = '#fff';
+	cxt.fillRect(food[0],food[1],snake.big,snake.big);
+}
+//获取下一步可以移动的位置
+function getAround(common) {
+	var snakeHeader = common[0];
+	var aroundArr = new Array();
+	aroundArr.push([snakeHeader[0]+snake.big,snakeHeader[1]]);
+	aroundArr.push([snakeHeader[0]-snake.big,snakeHeader[1]]);
+	aroundArr.push([snakeHeader[0],snakeHeader[1]+snake.big]);
+	aroundArr.push([snakeHeader[0],snakeHeader[1]-snake.big]);
+	var definedArr = common;
+	definedArr = definedArr.concat(commonDeny);
+	return aroundArr = diffArr(aroundArr,definedArr);
+}
+//获取最近路径
+function getLastPath(dir = true){
+	var snakeHeader = snake.body[0];
+	var snakeFooter = snake.body[snake.body.length-1];
+	var foodLocal = food;
+	var x = range(snakeHeader[0],foodLocal[0],snake.big);
+	if(snakeHeader[1] == foodLocal[1]){
+		if(foodLocal[1] == 0){
+			foodLocal[1] = foodLocal[1] + snake.big;
+		}else{
+			foodLocal[1] = foodLocal[1] - snake.big;
+		}
+	}
+	if(snakeHeader[0] == foodLocal[0]){
+		if(foodLocal[0] == 0){
+			foodLocal[0] = foodLocal[0] + snake.big;
+		}else{
+			foodLocal[0] = foodLocal[0] - snake.big;
+		}
+	}
+	var y = range(snakeHeader[1],foodLocal[1],snake.big);
+	var pathArr = new Array();
+	if(dir){
+		pathArr = tArr_x(y,snakeHeader[0]);
+		pathArr = pathArr.concat(tArr_y(x,y[y.length -1 ]));
+	}else{
+		pathArr = tArr_y(x,snakeHeader[1]);
+		pathArr = pathArr.concat(tArr_x(y,x[x.length -1 ]));
+	}
+	if(snakeHeader[1] == foodLocal[1] || snakeHeader[0] == foodLocal[0]){
+		pathArr = pathArr.concat([food]);
+	}
+	return pathArr;
+}
+
+//获取两点需要行走的距离
+function allStep(start,end){
+	var x = start[0] - end[0];
+	var y = start[1] - end[1];
+	return Math.abs(x)+Math.abs(y);
+}
+//获取下一步移动的位置
+function getNextStep(all,end){
+	var next = all[0];
+	var min = allStep(all[0],end);
+	for (var i = all.length - 1; i >= 0; i--) {
+		var step = allStep(all[i],end);
+		if(step < min){
+			min = step;
+			next = all[i];
+		}
+	}
+	return next;
+}
+//得到移动距离最远的
+function getNextFarStep(all,end){
+	var next = all[0];
+	var max = allStep(all[0],end);
+	for (var i = all.length - 1; i >= 0; i--) {
+		var step = allStep(all[i],end);
+		if(step > max){
+			max = step;
+			next = all[i];
+		}
+	}
+	return next;
+}
+//深度复制数组
+function deepCopy(arr){
+	var arr2 = new Array();
+	for (var i = arr.length - 1; i >= 0; i--) {
+		arr2[i] = arr[i];
+	}
+	return arr2;
+}
+//猜想下一次的移动过程
+function anglay(soSnake,soFood){
+	var steps = new Array();
+	var info = {};
+	var cou = true;
+	//深度复制
+	var anSnake = deepCopy(soSnake);
+	var anFood = deepCopy(soFood);
+	while(anFood.length != 0 && cou){
+		var nexts = getAround(anSnake);
+		if(nexts.length == 0){
+			cou = false;
+			break;
+		}
+		var next = getNextStep(nexts,anFood);
+		steps.push(next);
+		anSnake.unshift(next);
+		if(!eqArray(next,anFood)){
+			anSnake.pop();
+		}else{
+			//得到最后的蛇尾放入最后的移动处
+			info.snake = anSnake;
+			anFood = new Array();
+		}
+	}
+	info.steps = steps;
+	return cou ? info : false;
+}
+//模拟步数
+function anglaySteps(soSteps,soSnake){
+	//深度复制
+	var anSnake = new Array();
+	var anSteps = new Array();
+	for (var i = soSnake.length - 1; i >= 0; i--) {
+		anSnake[i] = soSnake[i];
+	}
+	for (var i = soSteps.length - 1; i >= 0; i--) {
+		anSteps[i] = soSteps[i];
+	}
+	//移动
+	var next = anSteps.shift();
+	while(anSteps.length > 0){
+		anSnake.pop();
+		if(inArray(next,anSnake)){
+			return false;
+		}
+		anSnake.unshift(next);
+	}
+	return true;
+}
+//选择空间最大一步
+function chooseStep(arr,body){
+	var definedArr = body;
+	definedArr = definedArr.concat(commonDeny);
+	var total = 0;
+	var next = arr[0];
+	for (var i = arr.length - 1; i >= 0; i--) {
+		var ready = arr[i];
+		var xs = range(ready[0]-snake.big*1,ready[0]+snake.big*1,snake.big);
+		var ys = range(ready[1]-snake.big*1,ready[1]+snake.big*1,snake.big);
+		var can = new Array();
+		for (var i = 0 ; i < xs ; i = i+snake.big){
+			for (var j = 0 ; j < ys ; j = j+snake.big){
+				can.push(new Array(i,j));
+			}
+		}
+		var re = diffArr(can,definedArr).length;
+		if(re > total){
+			total = re;
+			next = ready;
+		}
+	}
+	return new Array(next);
+}
+//获取食物靠边的一个位置
+function getFoodBorder(mood){
+	var x = mood[0];
+	var y = mood[1];
+	var allxy = new Array();
+	allxy.push([snake.big,y]);
+	allxy.push([canWidth-snake.big,y]);
+	allxy.push([x,canWidth-snake.big]);
+	allxy.push([x,snake.big]);
+	return allxy;
+}
+
+//获取能到达食物的所有路径
+function parseAllPath(snakeAn,nDenyMove,mood) {
+	//记录移动
+	var allSteps = new Array();
+	//蛇身
+	//var snakeAn = deepCopy(common);
+	//禁止移动区域
+	//var nDenyMove = deepCopy(denyMove);
+	//得到蛇头
+	var snakeHeader = snakeAn[0];
+	//下一步蛇能移动的位置
+	var steps = getAround(snakeAn);
+	//得到真正能移动的区域
+	steps = diffArr(steps,nDenyMove);
+	//如果没有则结束
+	if(steps.length == 0) return false;
+	//进入循环
+	for (var i = steps.length - 1; i >= 0; i--) {
+		//记录当前步数
+		var info = {};
+		//下一步移动放入禁止移动区域内
+		nDenyMove.push(steps[i]);
+		//加入蛇身
+		snakeAn.unshift(steps[i]);
+		//移出蛇尾,并记录
+		var snakeFooter = snakeAn.pop();
+		//将移动的数据加入info中
+		info.step = steps[i];
+		//如果得到食物返回
+		if(eqArray(mood,steps[i])){
+			return steps[i];
+		}else{
+			info.next = new Array();
+			//没有得到食物进行递归,并将结果放入info.next中
+			info.next.push([parseAllPath(snakeAn,nDenyMove,mood)]);
+		}
+		//将蛇身,禁止移动区域还原，进行下一轮循环,将移动信息放入移动记录
+		nDenyMove.pop();
+		snakeAn.shift();
+		snakeAn.push(snakeFooter);
+		allSteps.push(info);
+	}
+	//返回结果
+	return allSteps;
+}
+//随机运动方向
+function runRes(snakeAn,allCans) {
+	var res = diffArr(allCans,snakeAn);
+	var nexts = getAround(snakeAn);
+	var canMove = intersectArr(nexts,res);
+	return canMove.length > 0 ? canMove[parseInt(Math.random()*canMove.length)] : false;
+}
+//检测边缘闭环
+function checkBorderCloseCycle(snakeAn){
+	var next = false;
+	//蛇头
+	var snakeHeader = snakeAn[0];
+	var x = snakeHeader[0];
+	var y = snakeHeader[1];
+	//检测蛇头坐标是否位于左边缘位置并且防止顶角边缘检测
+	if( x == 0 && y != 0 && y != canWidth - snake.big){
+		var other = intersectArr(snakeAn,borderLeft);
+		if(other.length > 1){
+			//第二次出现的位置应该位于倒数第二位
+			var second = other[other.length - 2];
+			var ydy = y - second[1];
+			//位于下方向下位于上方向上
+			next = ydy > 0 ? new Array(x,y + snake.big) : new Array(x,y - snake.big);
+		}
+	}
+	if(x == canWidth - snake.big && y != 0 && y != canWidth - snake.big){
+		var other = intersectArr(snakeAn,borderRight);
+		if(other.length > 1){
+			//第二次出现的位置应该位于倒数第二位
+			var second = other[other.length - 2];
+			var ydy = y - second[1];
+			//位于下方向下位于上方向上
+			next = ydy > 0 ? new Array(x,y + snake.big) : new Array(x,y - snake.big);
+		}
+	}
+	if( y == 0 && x != 0 && x != canWidth - snake.big){
+		var other = intersectArr(snakeAn,borderUp);
+		if(other.length > 1) {
+			//第二次出现的位置应该位于倒数第二位
+			var second = other[other.length - 2];
+			var xdx = x - second[0];
+			//位于下方向下位于上方向上
+			next = xdx > 0 ? new Array(x + snake.big ,y) : new Array(x - snake.big,y);
+		}
+	}
+	if(y == canWidth - snake.big && x != 0 && x != canWidth - snake.big){
+		var other = intersectArr(snakeAn,borderButtom);
+		if(other.length > 1) {
+			//第二次出现的位置应该位于倒数第二位
+			var second = other[other.length - 2];
+			var xdx = x - second[0];
+			//位于下方向下位于上方向上
+			next = xdx > 0 ? new Array(x + snake.big ,y) : new Array(x - snake.big,y);
+		}
+	}
+	//console.log(next);
+	return next;
+}
+//获取某部分的形成闭环移动方向
+function getSnakeRundirection(some,snakeAn){
+	//console.log('开始检测移动方向');
+	//符合条件结束循环
+	var nextStep = false;
+	for (var i = 0; i < snakeAn.length; i++) {
+		if(eqArray(some[0],snakeAn[i])){
+			//console.log(snakeAn[i]);
+			var next = new Array();
+			if(i != snakeAn.length-1){
+				next = snakeAn[i+1];
+			}
+			var now = snakeAn[i];
+			var last = snakeAn[i-1];
+			if(next.length == 0){
+				if(now[0] == last[0]){
+					if(now[1] > last[1]){
+						nextStep = new Array(0,+snake.big);
+					}else{
+						nextStep = new Array(0,-snake.big);
+					}
+				}
+				if(now[1] == last[1]){
+					if(now[0] > last[0]){
+						nextStep = new Array(+snake.big,0);
+					}else{
+						nextStep = new Array(-snake.big,0);
+					}
+				}
+			}else{
+				//确定蛇头现在的运动方向进行排除
+				//如果x轴相同，选x轴的运动
+				if(snakeAn[0][0] == snakeAn[1][0]){
+					//如果上一个的y相等，那么就是x周运动
+					if(last[1] == now[1]){
+						if(now[0] > last[0]){
+							nextStep = new Array(+snake.big,0);
+						}else{
+							nextStep = new Array(-snake.big,0);
+						}
+					}else{
+						if(now[0] > next[0]){
+							nextStep = new Array(-snake.big,0);
+						}else{
+							nextStep = new Array(+snake.big,0);
+						}
+					}
+				}
+				//如果y轴相同，选y轴的运动
+				if(snakeAn[0][1] == snakeAn[1][1]){
+					//如果上一个的x相等，那么就是y轴运动(直接可用两点)
+					if(last[0] == now[0]){
+						if(now[1] > last[1]){
+							nextStep = new Array(0,+snake.big);
+						}else{
+							nextStep = new Array(0,-snake.big);
+						}
+					}else{
+						if(now[1] > next[1]){
+							nextStep = new Array(-snake.big,0);
+						}else{
+							nextStep = new Array(+snake.big,0);
+						}
+					}
+				}
+			}
+			break;
+		}
+	}
+	console.log(nextStep);
+	return nextStep;
+}
+//检查自我闭环
+function checkSelfCloseCycle(snakeAn) {
+	//console.log('自我闭环检测');
+	var snakeHeader = snakeAn[0];
+	var snakeHeader2 = snakeAn[1];
+	var nextStep = false;
+	//x轴闭环
+	if(snakeHeader[0] == snakeHeader2[0]){
+		//console.log('x轴闭环');
+		if(snakeHeader[1] > snakeHeader2[1]){
+			var nextmove = new Array([snakeHeader[0],snakeHeader[1] + snake.big]);
+		}else{
+			var nextmove = new Array([snakeHeader[0],snakeHeader[1] - snake.big]);
+		}
+		//console.log(nextmove,'下一步移动方向');
+		//达到自我闭环要求
+		if(intersectArr(nextmove,snakeAn).length == 1){
+			//console.log('达到自我闭环要求');
+			var runDirection = getSnakeRundirection(nextmove,snakeAn);
+			nextStep = new Array(snakeHeader[0]+runDirection[0],snakeHeader[1]+runDirection[1]);
+		}else{
+			//console.log('未达到自我闭环要求');
+		}
+	}
+	//y轴闭环
+	if(snakeHeader[1] == snakeHeader2[1]){
+		//console.log('y轴闭环');
+		if(snakeHeader[0] > snakeHeader2[0]){
+			var nextmove = new Array([snakeHeader[0] + snake.big,snakeHeader[1]]);
+		}else{
+			var nextmove = new Array([snakeHeader[0] - snake.big,snakeHeader[1]]);
+		}
+		//console.log(nextmove,'下一步移动方向');
+		//达到自我闭环要求
+		if(intersectArr(nextmove,snakeAn).length == 1){
+			//console.log('达到自我闭环要求');
+			var runDirection = getSnakeRundirection(nextmove,snakeAn);
+			nextStep = new Array(snakeHeader[0]+runDirection[0],snakeHeader[1]+runDirection[1]);
+		}else{
+			//console.log('未达到自我闭环要求');
+		}
+	}
+	//console.log(nextStep,'下一步移动');
+	//console.log(intersectArr(nextmove,snakeAn),'碰撞粒子',intersectArr(nextmove,snakeAn).length);
+	return nextStep;
+}
+draw_snake();
+drawFood();
+console.log(intersectArr(new Array(new Array(1,2)),new Array(new Array(1,2))));
+var nexts = new Array();
+var toFooter = new Array();
+setInterval(function(){
+	if(!run) return false;
+	//得到下一步移动点
+	if(nexts.length == 0){
+		nexts = anglay(snake.body,food);
+		//console.log(nexts);
+		//如果不能吃到食物，那么现在直接前往目前蛇尾的位置
+		if(!nexts){
+			var nowRoot = anglay(snake.body,snake.body[snake.body.length-1]);
+			//如果监测的前往尾部的路径,与之前的完全一直的话直接放弃
+			/*if(toFooter.length !=0 && diffArr(nowRoot,toFooter).length == 0){
+				nowRoot = false;
+			}
+			//如果之前没有前往尾部的路赋值
+			if(toFooter.length == 0){
+				toFooter = nowRoot;
+			}*/
+				//如果不能现在的蛇尾那么随机走一步，否则先到蛇尾
+			if(!nowRoot){
+				var nextcs = runRes(snake.body,allCan.body);
+				//如果不能前行结束
+				if(!nextcs){
+					console.log('你输了');
+					run = false;
+					return false;
+				}else{
+					console.log('随机一步');
+					nexts = new Array(nextcs);
+					snake.body.unshift(nexts[0]);
+					var snakeFooter = snake.body.pop();
+					console.log('边缘闭环检查');
+					var nnext = checkBorderCloseCycle(snake.body);
+					if(!nnext){
+						console.log('自我闭环检查');
+						var nnext = checkSelfCloseCycle(snake.body);
+						if(nnext){
+							nexts.push(nnext);
+							console.log(nexts);
+						}
+					}else{
+						nexts.push(nnext);
+					}
+					snake.body.shift();
+					snake.body.push(snakeFooter);
+				}
+			}else{
+				console.log('前往蛇尾');
+				nexts = new Array(nowRoot.steps.shift());
+			}
+		}else{
+			//如果能吃到食物
+			var anSnake = nexts.snake;
+			//获取蛇尾
+			var anFood = anSnake.pop();
+			anSnake.push(anFood);
+			//进一步猜想吃到后能不能到蛇尾
+			var anNexts = anglay(anSnake,anFood);
+			//如果不能那么现在直接前往目前蛇尾的位置，如果能吃到那么直接去吃
+			if(!anNexts){
+				var nowRoot = anglay(snake.body,snake.body[snake.body.length-1]);
+				/*//如果监测的前往尾部的路径,与之前的完全一直的话直接放弃
+				if(toFooter.length !=0 && diffArr(nowRoot,toFooter).length == 0){
+					nowRoot = nexts;
+				}
+				//如果之前没有前往尾部的路赋值
+				if(toFooter.length == 0){
+					toFooter = nowRoot;
+				}*/
+				//如果不能现在的蛇尾那么随机走一步，否则先到蛇尾
+				if(!nowRoot){
+					var nextcs = runRes(snake.body,allCan.body);
+					//如果不能前行结束
+					if(!nextcs){
+						console.log('你输了');
+						run = false;
+						return false;
+					}else{
+						console.log('随机一步');
+						nexts = new Array(nextcs);
+						snake.body.unshift(nexts[0]);
+						var snakeFooter = snake.body.pop();
+						console.log('边缘闭环检查');
+						var nnext = checkBorderCloseCycle(snake.body);
+						if(!nnext){
+							console.log('自我闭环检查');
+							var nnext = checkSelfCloseCycle(snake.body);
+							if(nnext){
+								nexts.push(nnext);
+								console.log(nexts);
+							}
+						}else{
+							nexts.push(nnext);
+						}
+						snake.body.shift();
+						snake.body.push(snakeFooter);
+					}
+				}else{
+					console.log('前往蛇尾');
+					nexts = new Array(nowRoot.steps.shift());
+				}
+			}else{
+				console.log('直接去吃');
+				toFooter = new Array();
+				nexts = nexts.steps;
+			}
+		}
+		console.log(snake.body.length);
+	}
+
+	//移动
+	var next = nexts.shift();
+	snake.body.unshift(next);
+	if(!eqArray(next,food)){
+		snake.body.pop();
+	}else{
+		//产生新的食物
+		residue.body = diffArr(allCan.body,snake.body);
+		//console.log(residue.body.length);
+		food = residue.body[parseInt(Math.random()*residue.body.length)];
+	}
+
+	cxt.clearRect(0,0,canWidth,canWidth);
+	drawFood();
+	draw_snake();
+},20);
+</script>
+</body>
+</html>
