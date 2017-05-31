@@ -22,13 +22,16 @@ var App = function(rootPath){
             this.root = '/'+first.split('/')[0]+'/';
         }
     }
+    //css数组
+    this.loadedCss = [];
+    //js数组
+    this.loadedJs = [];
+    //url数组
+    this.urls = [];
     this.public = this.root+'Public/';
     this.registerLoadedJs();
     this.registerLoadedCss();
-  
 }
-App.prototype.loadedCss = [];
-App.prototype.loadedJs = [];
 //首字母大写
 App.prototype.upString = function(string){
     var tempString = string.split('');
@@ -43,7 +46,8 @@ App.prototype.registerLoadedJs = function(){
         if((typeof srcs[i].src != 'undefined') && (srcs[i].src != '')){
             this.registerjs(srcs[i].src);
         }
-    } 
+    }
+    return this; 
 }
 //登记已经引入的css
 App.prototype.registerLoadedCss = function(){
@@ -54,6 +58,7 @@ App.prototype.registerLoadedCss = function(){
             this.registercss(links[i].href);
         }
     } 
+    return this;
 }
 /**
  * 错误提醒机制--有console 优先使用console 否则使用 alert
@@ -76,7 +81,9 @@ App.prototype.error = function(string){
  */
 App.prototype.url = function(controller,method,layer){
     layer = (typeof layer != 'undefined') ? layer : 'Home';
-    return this.root+'index.php/'+layer+'/'+this.upString(controller)+'/'+method+'/';
+    var url = this.root+'index.php/'+layer+'/'+this.upString(controller)+'/'+method+'/';
+    this.inArray(url,this.urls) ? this.urls.push(url) : '';
+    return url;
 }
 /**
  * 初始化一些需要的Url
@@ -87,6 +94,7 @@ App.prototype.initUrl = function(obj){
     for (var i = 0; i < obj.length; i++) {
         this[obj[i][0]+'Url'] = this.url(obj[i][1],obj[i][2]);
     }
+    return this;
 }
 /**
  * 序列化表单  基于jquery
@@ -130,6 +138,7 @@ App.prototype.registerjs = function(srcArr){
     }else{
         this.loadedJs.push(srcArr);
     }
+    return this;
 }
 /**
  * 外部直接引入的css需要进行登记
@@ -142,6 +151,7 @@ App.prototype.registercss = function(hrefArr){
     }else{
         this.loadedCss.push(hrefArr);
     }
+    return this;
 }
 /**
  * 动态加载js，可以防止因为一个js文件加载缓慢导致整个html停顿
@@ -155,6 +165,7 @@ App.prototype.loadjs = function(src){
     script.src = src;
     document.getElementsByTagName('head')[0].appendChild(script);
     this.loadedJs.push(src);
+    return this;
 }
 /**
  * 获取使用过的js
@@ -169,12 +180,22 @@ App.prototype.getJsArr = function(){
  * @param  Function callback 回调事件  
  * @return 
  */
-App.prototype.listenKey = function(key,callback){
+App.prototype.listenKey = function(key){
     document.onkeydown = function(e){
         var theEvent = e || window.event;
         var code = theEvent.keyCode || theEvent.which || theEvent.charCode;
-        if(code == key){
-            callback();
-        }
+        return code == key;
     }
+}
+/**
+ * 是否在数组中
+ * @param  string $searh 比较的字符串
+ * @param  array $arr   比较的数组
+ * @return boolean
+ */
+App.prototype.inArray(searh,arr){
+    for (var i = 0; i < arr.length; i++) {
+        if(arr[i] == search) return true;
+    }
+    return false;
 }
