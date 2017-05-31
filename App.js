@@ -82,7 +82,7 @@ App.prototype.error = function(string){
 App.prototype.url = function(controller,method,layer){
     layer = (typeof layer != 'undefined') ? layer : 'Home';
     var url = this.root+'index.php/'+layer+'/'+this.upString(controller)+'/'+method+'/';
-    this.inArray(url,this.urls) ? this.urls.push(url) : '';
+    !this.inArray(url,this.urls) ? this.urls.push(url) : '';
     return url;
 }
 /**
