@@ -15,7 +15,6 @@ var App = function(rootPath){
     }else{
         //确保App.js是第一个引入
         var first = document.getElementsByTagName('script')[0].src;
-        //排除外链地址
         if(first.indexOf('http') > -1){
             this.root = '/'+first.split('/')[3]+'/';
         }else{
@@ -47,7 +46,7 @@ App.prototype.registerLoadedJs = function(){
             this.registerjs(srcs[i].src);
         }
     }
-    return this; 
+    return this;
 }
 //登记已经引入的css
 App.prototype.registerLoadedCss = function(){
@@ -57,13 +56,13 @@ App.prototype.registerLoadedCss = function(){
         if((typeof links[i].href != 'undefined') && (links[i].href != '')){
             this.registercss(links[i].href);
         }
-    } 
+    }
     return this;
 }
 /**
  * 错误提醒机制--有console 优先使用console 否则使用 alert
  * @param  string string 错误信息
- * @return void        
+ * @return void
  */
 App.prototype.error = function(string){
     if(typeof window.console != 'undefined'){
@@ -74,25 +73,24 @@ App.prototype.error = function(string){
 }
 /**
  * 获取tp的url
- * @param  string controller 控制器
- * @param  string method     方法
+ * @param  string tpstring tpUrl标准写法
  * @param  string layer      层级  无传值为Home
- * @return string            
+ * @return string
  */
-App.prototype.url = function(controller,method,layer){
+App.prototype.url = function(tpstring,layer){
     layer = (typeof layer != 'undefined') ? layer : 'Home';
-    var url = this.root+'index.php/'+layer+'/'+this.upString(controller)+'/'+method+'/';
+    var url = this.root+'index.php/'+layer+'/'+this.upString(tpstring)+'/';
     !this.inArray(url,this.urls) ? this.urls.push(url) : '';
     return url;
 }
 /**
  * 初始化一些需要的Url
- * @param  array obj [[function,Controller,method]]
+ * @param  array obj [{function:'',url:''}]
  * @return viod
  */
 App.prototype.initUrl = function(obj){
     for (var i = 0; i < obj.length; i++) {
-        this[obj[i][0]+'Url'] = this.url(obj[i][1],obj[i][2]);
+        this[obj[i].function+'Url'] = this.url(obj[i].url);
     }
     return this;
 }
@@ -102,7 +100,7 @@ App.prototype.initUrl = function(obj){
  * @return object        json
  */
 App.prototype.serializeJson = function(selecter){
-    if(typeof this.downImageUrl == 'undefined'){
+    if(typeof $ == 'undefined'){
         var str = '该方法是基于jquery，引入jquery后使用';
         this.error(str);
         return false;
@@ -110,22 +108,23 @@ App.prototype.serializeJson = function(selecter){
     var formArr = $(selecter).serializeArray();
     var jsonObj = {};
     for (var i = 0; i < formArr.length; i++) {
-        tempArr[formArr[i].name] = formArr[i].value;
+        jsonObj[formArr[i].name] = formArr[i].value;
     }
     return jsonObj;
 }
 /**
  * 下载单张图片  //需要后端支持
+ * @param  string param  后端接受参数名
  * @param  string imageUrl 图片地址（支持本地，远程地址）
  * @return false/viod
  */
-App.prototype.downImage = function(imageUrl){
+App.prototype.downImage = function(param,imageUrl){
     if(typeof this.downImageUrl == 'undefined'){
-        var str = '请使用 app.initUrl([["downImage",TP控制器,TP方法]]) 初始化TP后端地址后使用';
+        var str = '请使用 app.initUrl([["downImage",TPstring]]) 初始化TP后端地址后使用';
         this.error(str);
         return false;
     }
-    window.location.href = this.downImageUrl+'?img='+imageUrl;
+    window.location.href = this.downImageUrl+'?'+param+'='+imageUrl;
 }
 /**
  * 外部直接引入的js需要进行登记
@@ -157,7 +156,7 @@ App.prototype.registercss = function(hrefArr){
  * 动态加载js，可以防止因为一个js文件加载缓慢导致整个html停顿
  * 但是无法确保加载文件的先后顺序，所以需要确保动态加载的资源之间没有相互依赖
  * @param  string src js文件地址
- * @return void     
+ * @return void
  */
 App.prototype.loadjs = function(src){
     var script = document.createElement('script');
@@ -169,7 +168,7 @@ App.prototype.loadjs = function(src){
 }
 /**
  * 获取使用过的js
- * @return array 
+ * @return array
  */
 App.prototype.getJsArr = function(){
     return this.loadedJs;
@@ -177,23 +176,25 @@ App.prototype.getJsArr = function(){
 /**
  * 监听键盘事件 兼容各个浏览器
  * @param  string   key      按键
- * @param  Function callback 回调事件  
- * @return 
+ * @param  Function callback 回调事件
+ * @return
  */
-App.prototype.listenKey = function(key){
+App.prototype.listenKey = function(key,callback){
     document.onkeydown = function(e){
         var theEvent = e || window.event;
         var code = theEvent.keyCode || theEvent.which || theEvent.charCode;
-        return code == key;
+        if(code == key){
+            callback();
+        }
     }
 }
 /**
  * 是否在数组中
- * @param  string $searh 比较的字符串
+ * @param  string $search 比较的字符串
  * @param  array $arr   比较的数组
  * @return boolean
  */
-App.prototype.inArray(searh,arr){
+App.prototype.inArray(search,arr){
     for (var i = 0; i < arr.length; i++) {
         if(arr[i] == search) return true;
     }
